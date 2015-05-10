@@ -4,27 +4,47 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.RelativeLayout;
 
+/**
+ * 支付宝手势逻辑：
+ * <ul>
+ * <li>登录时必须解锁</li>
+ * <li>2分钟内不加锁（时间尚未确定）</li>
+ * </ul>
+ */
 public class GestureLock extends RelativeLayout{
+
+	private static final String DEBUG_TAG = "GestureLock";
 	
 	private GestureLockView[] lockers;
-	
+
+	/**
+	 * 普通锁屏模式
+	 */
 	public static final int MODE_NORMAL = 0;
+
+	/**
+	 * 设置模式：该模式下手势绘制过的点会有箭头指向，用于标记手势图的有向性。
+	 */
 	public static final int MODE_EDIT = 1;
 	
 	private int mode = MODE_NORMAL;
 	
-	private static final int depth = 3;
+	public static final int DEPTH = 3;
 	
 	private int[] defaultGestures = new int[]{0, 1, 2, 4, 6};
 	private int[] negativeGestures;
 	
 	private int[] gesturesContainer;
 	private int gestureCursor = 0;
+
+	public static final int FLAG_NON_DETECTED = -1;
 	
 	private Path gesturePath;
 	
@@ -33,12 +53,20 @@ public class GestureLock extends RelativeLayout{
 	private int lastPathX;
 	private int lastPathY;
 	
-	private int blockWidth = 190;
-	private int blockGap = 70;
-	
+	private int blockWidth;
+	private int blockGap;
 	private int gestureWidth;
+
+	private float mGapBlockRate = (float) (2.0 / 3);
+	private float mBlockGapRate = 1.5F;
+	private float mDrawingStrokeRate = 0.072F;
+	private int drawingStrokeWidth;
+
+	private static final int COLOR_DRAWING = 0xFFFFFFFF;
+	private static final int COLOR_ERROR = 0xFFFF0000;
 	
 	private Paint paint;
+	private Paint vertexDotPaint;
 	
 	private int unmatchedCount;
 	private static final int unmatchedBoundary = 5;
@@ -50,6 +78,8 @@ public class GestureLock extends RelativeLayout{
 	public interface OnGestureEventListener{
 		public void onBlockSelected(int position);
 		public void onGestureEvent(boolean matched);
+		public void onPatternComplete(String patternCode);
+		public void onPatternClear();
 		public void onUnmatchedExceedBoundary();
 	}
 
@@ -64,15 +94,18 @@ public class GestureLock extends RelativeLayout{
 	public GestureLock(Context context, AttributeSet attrs, int defStyle){
 		super(context, attrs, defStyle);
 		
-		negativeGestures = new int[depth * depth];
-		for(int i = 0; i < negativeGestures.length; i++) negativeGestures[i] = -1;
+		negativeGestures = new int[DEPTH * DEPTH];
+		for(int i = 0; i < negativeGestures.length; i++) negativeGestures[i] = FLAG_NON_DETECTED;
 		gesturesContainer = negativeGestures.clone();
 		
 		paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 		paint.setStyle(Paint.Style.STROKE);
-		paint.setStrokeWidth(20);
+		paint.setStrokeWidth(20);				// DEFAULT
 		paint.setStrokeCap(Paint.Cap.ROUND);
 		paint.setStrokeJoin(Paint.Join.ROUND);
+
+		vertexDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+		vertexDotPaint.setStyle(Paint.Style.FILL);
 		
 		unmatchedCount = 0;
 		
@@ -101,20 +134,28 @@ public class GestureLock extends RelativeLayout{
 		int length = width > height ? height : width;
 		
 		if(lockers == null){
-			blockWidth = (length - (blockGap * (depth - 1))) / depth;
-			gestureWidth = blockWidth * depth + blockGap * (depth - 1);
-			lockers = new GestureLockView[depth * depth];
+			// As you can see:
+			// block/gap => 3/2 => 1.5
+			// depth * block + (depth - 1) * gap => depth * blockGapRate * gap + (depth - 1) * gap = length
+			// which equals that:
+			blockGap = (int) (length / (DEPTH * mBlockGapRate + DEPTH - 1));
+			blockWidth = (int) (mBlockGapRate * blockGap);
+			gestureWidth = blockWidth * DEPTH + blockGap * (DEPTH - 1);
+			drawingStrokeWidth = (int) (blockWidth * mDrawingStrokeRate);
+			paint.setStrokeWidth(drawingStrokeWidth);
+
+			lockers = new GestureLockView[DEPTH * DEPTH];
 			for(int i = 0; i < lockers.length; i++){
 				lockers[i] = new GestureLockView(getContext());
 				lockers[i].setId(i + 1);
 				
 				RelativeLayout.LayoutParams lockerParams = new RelativeLayout.LayoutParams(blockWidth, blockWidth);
-				if(i % depth != 0) lockerParams.addRule(RelativeLayout.RIGHT_OF, lockers[i - 1].getId());
-				if(i > (depth - 1)) lockerParams.addRule(RelativeLayout.BELOW, lockers[i - depth].getId());
+				if(i % DEPTH != 0) lockerParams.addRule(RelativeLayout.RIGHT_OF, lockers[i - 1].getId());
+				if(i > (DEPTH - 1)) lockerParams.addRule(RelativeLayout.BELOW, lockers[i - DEPTH].getId());
 				int rightMargin = 0;
 				int bottomMargin = 0;
-				if((i + 1) % depth != 0) rightMargin = blockGap;
-				if(i < depth * (depth - 1)) bottomMargin = blockGap;
+				if((i + 1) % DEPTH != 0) rightMargin = blockGap;
+				if(i < DEPTH * (DEPTH - 1)) bottomMargin = blockGap;
 				
 				lockerParams.setMargins(0, 0, rightMargin, bottomMargin);
 				
@@ -144,7 +185,8 @@ public class GestureLock extends RelativeLayout{
 				lastPathX = lastX;
 				lastPathY = lastY;
 				
-				paint.setColor(0x66FFFFFF);
+				paint.setColor(COLOR_DRAWING);
+				vertexDotPaint.setColor(COLOR_DRAWING);
 				
 				break;
 			case MotionEvent.ACTION_MOVE:
@@ -164,9 +206,9 @@ public class GestureLock extends RelativeLayout{
 				}
 				
 				if(child != null && child instanceof GestureLockView && checkChildInCoords(lastX, lastY, child)){
-					((GestureLockView) child).setMode(GestureLockView.MODE_SELECTED);
-					
+
 					if(!checked){
+
 						int checkedX = child.getLeft() + child.getWidth() / 2;
 						int checkedY = child.getTop() + child.getHeight() / 2;
 						if(gesturePath == null){
@@ -177,6 +219,13 @@ public class GestureLock extends RelativeLayout{
 						}
 						gesturesContainer[gestureCursor] = cId;
 						gestureCursor++;
+
+						int mode = GestureLockView.MODE_SELECTED;
+						int hDirect = getDirection(checkedX, lastPathX);
+						int vDirect = getDirection(checkedY, lastPathY);
+						mode |= getDrawingDirection(hDirect, vDirect);
+
+						((GestureLockView) child).setMode(mode);
 						
 						lastPathX = checkedX;
 						lastPathY = checkedY;
@@ -189,8 +238,10 @@ public class GestureLock extends RelativeLayout{
 				break;
 			case MotionEvent.ACTION_CANCEL:
 			case MotionEvent.ACTION_UP:
+
+				onGestureEventListener.onPatternComplete(patternToCode());
 				
-				if(gesturesContainer[0] != -1){
+				if(gesturesContainer[0] != FLAG_NON_DETECTED){
 					boolean matched = false;
 					for(int j = 0; j < defaultGestures.length; j++){
 						if(gesturesContainer[j] == defaultGestures[j]){
@@ -203,7 +254,8 @@ public class GestureLock extends RelativeLayout{
 					
 					if(!matched && mode != MODE_EDIT){
 						unmatchedCount++;
-						paint.setColor(0x66FF0000);
+						paint.setColor(COLOR_ERROR);
+						vertexDotPaint.setColor(COLOR_ERROR);
 						for(int k : gesturesContainer){
 							View selectedChild = findViewById(k + 1);
 							if(selectedChild != null && selectedChild instanceof GestureLockView){
@@ -239,7 +291,103 @@ public class GestureLock extends RelativeLayout{
 		
 		return true;
 	}
-	
+
+	private int getDirection(int checkedX, int lastPathX) {
+		int dir = checkedX - lastPathX;
+		if (dir < 0) {
+			dir = -1;
+		} else if (dir > 0) {
+			dir = 1;
+		} else {
+			dir = 0;
+		}
+		return dir;
+	}
+
+	private int getDrawingDirection(int hDirect, int vDirect) {
+		int arrow;
+		if (hDirect == -1) {
+			if (vDirect == -1) {
+				arrow = GestureLockView.ARROW_LEFT_TOP;
+			} else if (vDirect == 0) {
+				arrow = GestureLockView.ARROW_LEFT;
+			} else {
+				arrow = GestureLockView.ARROW_BOTTOM_LEFT;
+			}
+		} else if (hDirect == 0) {
+			if (vDirect == -1) {
+				arrow = GestureLockView.ARROW_TOP;
+			} else if (vDirect == 0) {
+				arrow = GestureLockView.ARROW_SELF;
+			} else {
+				arrow = GestureLockView.ARROW_BOTTOM;
+			}
+		} else {
+			if (vDirect == -1) {
+				arrow = GestureLockView.ARROW_TOP_RIGHT;
+			} else if (vDirect == 0) {
+				arrow = GestureLockView.ARROW_RIGHT;
+			} else {
+				arrow = GestureLockView.ARROW_RIGHT_BOTTOM;
+			}
+		}
+		return arrow;
+	}
+
+	private void forceClear() {
+		for(int i = 0; i < getChildCount(); i++){
+			View c = getChildAt(i);
+			if(c instanceof GestureLockView){
+				((GestureLockView) c).setMode(GestureLockView.MODE_NORMAL);
+			}
+		}
+
+		gesturePath = null;
+		onGestureEventListener.onPatternClear();
+		invalidate();
+	}
+
+	/**
+	 *
+	 * @return
+	 */
+	private String patternToCode() {
+		StringBuilder builder = new StringBuilder();
+		builder.append(DEPTH + "@");
+		int[] cells = gesturesContainer;
+		int fixedWidth = new String("" + DEPTH * DEPTH).length();
+		for (int i = 0; i < cells.length; i++) {
+			if (cells[i] != FLAG_NON_DETECTED) {
+				builder.append(String.format("%" + fixedWidth + "d", cells[i]));
+			}
+		}
+		Log.d(DEBUG_TAG, "patternToCode:" + builder.toString());
+		return builder.toString();
+	}
+
+	public static int[] parseCode(String code) {
+		int flag;
+		if (TextUtils.isEmpty(code) || (flag = code.indexOf("@")) <= 0) {
+			throw new IllegalArgumentException();
+		}
+		int depth = Integer.parseInt(code.substring(0, flag));
+		int fixedWidth = new String("" + depth * depth).length();
+
+		if (depth < 0) {
+			throw new NumberFormatException();
+		} else if (depth == 0){
+			return null;
+		}
+
+		String rawCode = code.substring(flag + 1, code.length());
+		int[] res = new int[rawCode.length() / fixedWidth];
+		for (int i = 0; i<res.length; i++) {
+			res[i] = Integer.parseInt(rawCode.substring(i*fixedWidth,(i+1) * fixedWidth));
+		}
+
+		return res;
+	}
+
 	public void setCorrectGesture(int[] correctGestures){
 		defaultGestures = correctGestures;
 	}
@@ -250,10 +398,10 @@ public class GestureLock extends RelativeLayout{
 	
 	private int calculateChildIdByCoords(int x, int y){
 		if(x >= 0 && x <= gestureWidth && y >= 0 && y <= gestureWidth){
-			int rowX = (int) (((float) x / (float) gestureWidth) * depth);
-			int rowY = (int) (((float) y / (float) gestureWidth) * depth);
+			int rowX = (int) (((float) x / (float) gestureWidth) * DEPTH);
+			int rowY = (int) (((float) y / (float) gestureWidth) * DEPTH);
 			
-			return rowX + (rowY * depth);
+			return rowX + (rowY * DEPTH);
 		}
 		
 		return -1;
@@ -283,6 +431,6 @@ public class GestureLock extends RelativeLayout{
 			 canvas.drawPath(gesturePath, paint);
 		}
 		
-		if(gesturesContainer[0] != -1) canvas.drawLine(lastPathX, lastPathY, lastX, lastY, paint);
+		if(gesturesContainer[0] != FLAG_NON_DETECTED) canvas.drawLine(lastPathX, lastPathY, lastX, lastY, paint);
 	}
 }
