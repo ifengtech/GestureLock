@@ -6,10 +6,11 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 
-public class GestureLockView extends View{
+public class GestureLockView extends View {
+
+	private static final String DEBUG_TAG = GestureLockView.class.getSimpleName();
 	
 	public static final int MODE_NORMAL = 0x100;
 	public static final int MODE_SELECTED = 0x200;
@@ -49,7 +50,6 @@ public class GestureLockView extends View{
 	private float arrowDistanceRate = 0.0F;
 	private int arrowDistance;
 
-	// Edit by WangGensheng
 	private int mDefaultRingWidth = 2;
 	private int mSelRingWidth = 4;
 //	private float mSelInnerRate = 0.31F;			// inner dot merges into gesture stroke
@@ -73,7 +73,8 @@ public class GestureLockView extends View{
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec){
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-		
+		Log.d(DEBUG_TAG, "widthMeasureSpec:" + widthMeasureSpec);
+		Log.d(DEBUG_TAG, "heightMeasureSpec:" + heightMeasureSpec);
 		width = MeasureSpec.getSize(widthMeasureSpec);
 		height = MeasureSpec.getSize(heightMeasureSpec);
 		

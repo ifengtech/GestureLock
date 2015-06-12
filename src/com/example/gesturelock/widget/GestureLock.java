@@ -10,6 +10,9 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
+
+import cn.vpfinance.android.util.MD5;
 
 /**
  * 支付宝手势逻辑：
@@ -18,11 +21,13 @@ import android.widget.RelativeLayout;
  * <li>2分钟内不加锁（时间尚未确定）</li>
  * </ul>
  */
-public class GestureLock extends RelativeLayout{
+public class GestureLock extends RelativeLayout {
 
 	private static final String DEBUG_TAG = "GestureLock";
 	
 	private GestureLockView[] lockers;
+
+//	private static final int MAX_WIDTH = 700;
 
 	/**
 	 * 普通锁屏模式
@@ -37,50 +42,88 @@ public class GestureLock extends RelativeLayout{
 	private int mode = MODE_NORMAL;
 	
 	public static final int DEPTH = 3;
-	
+
+	private boolean saveMode = false;
+	private int mSavingStep;
+	private static final int SAVEING_STEP_1 = 1;
+	private static final int SAVING_STEP_2 = 2;
+
 	private int[] defaultGestures = new int[]{0, 1, 2, 4, 6};
-	private int[] negativeGestures;
-	
+	private String securePatternCode;
+
+	private int[] negativeGestures;			// [-1,-1,-1,-1,-1,-1,-1,-1,-1]
 	private int[] gesturesContainer;
+
 	private int gestureCursor = 0;
 
 	public static final int FLAG_NON_DETECTED = -1;
-	
+
 	private Path gesturePath;
-	
 	private int lastX;
 	private int lastY;
 	private int lastPathX;
+
 	private int lastPathY;
-	
 	private int blockWidth;
 	private int blockGap;
-	private int gestureWidth;
 
+	private static final int BLOCK_WIDTH_MIN = 72;
+	private static final int BLOCK_GAP_MIN = 48;
+
+	private int gestureWidth;
 	private float mGapBlockRate = (float) (2.0 / 3);
 	private float mBlockGapRate = 1.5F;
 	private float mDrawingStrokeRate = 0.072F;
-	private int drawingStrokeWidth;
 
+	private int drawingStrokeWidth;
 	private static final int COLOR_DRAWING = 0xFFFFFFFF;
+
 	private static final int COLOR_ERROR = 0xFFFF0000;
-	
 	private Paint paint;
+
 	private Paint vertexDotPaint;
-	
 	private int unmatchedCount;
+
 	private static final int unmatchedBoundary = 5;
-	
+
 	private boolean touchable;
-	
+
+//	private OnGestureEventListener onGestureEventListener;
+
 	private OnGestureEventListener onGestureEventListener;
-	
-	public interface OnGestureEventListener{
-		public void onBlockSelected(int position);
-		public void onGestureEvent(boolean matched);
-		public void onPatternComplete(String patternCode);
-		public void onPatternClear();
-		public void onUnmatchedExceedBoundary();
+	private OnBlockSelectedListener onBlockSelectedListener;
+	private OnGestureCompleteListener onGestureCompleteListener;
+
+
+	public void setOnGestureCompleteListener(OnGestureCompleteListener onGestureCompleteListener) {
+		this.onGestureCompleteListener = onGestureCompleteListener;
+	}
+
+	public void setOnBlockSelectedListener(OnBlockSelectedListener onBlockSelectedListener) {
+		this.onBlockSelectedListener = onBlockSelectedListener;
+	}
+
+	public void setSaveMode(boolean saveMode) {
+		this.saveMode = saveMode;
+		mSavingStep = SAVEING_STEP_1;
+	}
+
+	public void reset() {
+		if (saveMode) {
+			mSavingStep = SAVEING_STEP_1;
+		}
+	}
+
+	public interface OnGestureEventListener {
+		void OnGestureEvent(boolean match);
+	}
+
+	public interface OnGestureCompleteListener {
+		void onGestureComplete(String patternCode);
+	}
+
+	public interface OnBlockSelectedListener {
+		void onBlockSelected(int position);
 	}
 
 	public GestureLock(Context context){
@@ -126,30 +169,47 @@ public class GestureLock extends RelativeLayout{
 	
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec){
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-		
+//		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+		if (heightMeasureSpec == 0) {
+			heightMeasureSpec = widthMeasureSpec;
+		}
+
+		int length = 0;
 		int width = MeasureSpec.getSize(widthMeasureSpec);
 		int height = MeasureSpec.getSize(heightMeasureSpec);
-		
-		int length = width > height ? height : width;
-		
-		if(lockers == null){
+		width = width - getPaddingLeft() - getPaddingRight();
+		height = height - getPaddingTop() - getPaddingBottom();
+		length = width > height ? height : width;
+
+		if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.UNSPECIFIED) {
+			blockGap = BLOCK_GAP_MIN;
+			blockWidth = BLOCK_WIDTH_MIN;
+		} else {
+			blockGap = (int) (length / (DEPTH * mBlockGapRate + DEPTH - 1));
+			blockWidth = (int) (mBlockGapRate * blockGap);
+		}
+
+		gestureWidth = blockWidth * DEPTH + blockGap * (DEPTH - 1);
+		drawingStrokeWidth = (int) (blockWidth * mDrawingStrokeRate);
+		paint.setStrokeWidth(drawingStrokeWidth);
+
+		width = gestureWidth + getPaddingLeft() + getPaddingRight();
+		height = gestureWidth + getPaddingTop() + getPaddingBottom();
+//		setMeasuredDimension(width, height);
+		super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
+
+		if(lockers == null) {
 			// As you can see:
 			// block/gap => 3/2 => 1.5
 			// depth * block + (depth - 1) * gap => depth * blockGapRate * gap + (depth - 1) * gap = length
 			// which equals that:
-			blockGap = (int) (length / (DEPTH * mBlockGapRate + DEPTH - 1));
-			blockWidth = (int) (mBlockGapRate * blockGap);
-			gestureWidth = blockWidth * DEPTH + blockGap * (DEPTH - 1);
-			drawingStrokeWidth = (int) (blockWidth * mDrawingStrokeRate);
-			paint.setStrokeWidth(drawingStrokeWidth);
 
 			lockers = new GestureLockView[DEPTH * DEPTH];
-			for(int i = 0; i < lockers.length; i++){
+			for(int i = 0; i < lockers.length; i++) {
 				lockers[i] = new GestureLockView(getContext());
 				lockers[i].setId(i + 1);
 				
-				RelativeLayout.LayoutParams lockerParams = new RelativeLayout.LayoutParams(blockWidth, blockWidth);
+				LayoutParams lockerParams = new LayoutParams(blockWidth, blockWidth);
 				if(i % DEPTH != 0) lockerParams.addRule(RelativeLayout.RIGHT_OF, lockers[i - 1].getId());
 				if(i > (DEPTH - 1)) lockerParams.addRule(RelativeLayout.BELOW, lockers[i - DEPTH].getId());
 				int rightMargin = 0;
@@ -160,10 +220,11 @@ public class GestureLock extends RelativeLayout{
 				lockerParams.setMargins(0, 0, rightMargin, bottomMargin);
 				
 				addView(lockers[i], lockerParams);
-				
+				Log.d(DEBUG_TAG, "i:" + i);
 				lockers[i].setMode(GestureLockView.MODE_NORMAL);
 			}
 		}
+
 	}
 	
 	@Override
@@ -230,7 +291,7 @@ public class GestureLock extends RelativeLayout{
 						lastPathX = checkedX;
 						lastPathY = checkedY;
 						
-						if(onGestureEventListener != null) onGestureEventListener.onBlockSelected(cId);
+						if(onBlockSelectedListener != null) onBlockSelectedListener.onBlockSelected(cId);
 					}
 				}
 				
@@ -238,53 +299,76 @@ public class GestureLock extends RelativeLayout{
 				break;
 			case MotionEvent.ACTION_CANCEL:
 			case MotionEvent.ACTION_UP:
-
-				onGestureEventListener.onPatternComplete(patternToCode());
 				
 				if(gesturesContainer[0] != FLAG_NON_DETECTED){
-					boolean matched = false;
-					for(int j = 0; j < defaultGestures.length; j++){
-						if(gesturesContainer[j] == defaultGestures[j]){
-							matched = true;
-						}else{
-							matched = false;
-							break;
-						}
-					}
-					
-					if(!matched && mode != MODE_EDIT){
-						unmatchedCount++;
-						paint.setColor(COLOR_ERROR);
-						vertexDotPaint.setColor(COLOR_ERROR);
-						for(int k : gesturesContainer){
-							View selectedChild = findViewById(k + 1);
-							if(selectedChild != null && selectedChild instanceof GestureLockView){
-								((GestureLockView) selectedChild).setMode(GestureLockView.MODE_ERROR);
+					if (!saveMode) {
+						boolean matched = true;
+						/*
+						if (gestureCursor == defaultGestures.length) {
+							for (int j = 0; j < defaultGestures.length; j++) {
+								if (gesturesContainer[j] != defaultGestures[j]) {
+									matched = false;
+									break;
+								}
 							}
-						}
-					}else{
-						unmatchedCount = 0;
-					}
-					
-					
-					
-					if(onGestureEventListener != null){
-						onGestureEventListener.onGestureEvent(matched);
-						if(unmatchedCount >= unmatchedBoundary){
-							onGestureEventListener.onUnmatchedExceedBoundary();
+						} else {
+							matched = false;
+						}*/
+						matched = MD5.compareMD5String(this.securePatternCode, patternToSecureCode());
+
+						if (!matched && mode != MODE_EDIT) {
+							unmatchedCount++;
+							paint.setColor(COLOR_ERROR);
+							vertexDotPaint.setColor(COLOR_ERROR);
+							for (int k : gesturesContainer) {
+								View selectedChild = findViewById(k + 1);
+								if (selectedChild != null && selectedChild instanceof GestureLockView) {
+									((GestureLockView) selectedChild).setMode(GestureLockView.MODE_ERROR);
+								}
+							}
+
+							postDelayed(new Runnable() {
+								@Override
+								public void run() {
+									clearPattern();
+								}
+							}, 2000);
+						} else {
 							unmatchedCount = 0;
 						}
+
+
+						if (onGestureEventListener != null) {
+							onGestureEventListener.OnGestureEvent(matched);
+//						if(unmatchedCount >= unmatchedBoundary){
+//							onGestureEventListener.onUnmatchedExceedBoundary();
+//							unmatchedCount = 0;
+//						}
+						}
+					} else {
+						if (gestureCursor < 4) {
+							Toast.makeText(getContext(), "至少连接4个点，请重新输入。", Toast.LENGTH_SHORT).show();
+						} else {
+							if (onGestureCompleteListener != null) {
+								onGestureCompleteListener.onGestureComplete(patternToCode());
+							}
+							setSecurePatternCode(patternToSecureCode());
+							saveMode = false;
+//							mSavingStep = SAVING_STEP_2;
+						}
+						clearPattern();
+						break;
 					}
 				}
-				
+
 				gestureCursor = 0;
 				gesturesContainer = negativeGestures.clone();
-				
+
 				lastX = lastPathX;
 				lastY = lastPathY;
-				
+
 				invalidate();
-				
+
 				break;
 			}
 		}
@@ -334,16 +418,20 @@ public class GestureLock extends RelativeLayout{
 		return arrow;
 	}
 
-	private void forceClear() {
+	public void clearPattern() {
 		for(int i = 0; i < getChildCount(); i++){
 			View c = getChildAt(i);
 			if(c instanceof GestureLockView){
 				((GestureLockView) c).setMode(GestureLockView.MODE_NORMAL);
 			}
 		}
+		gestureCursor = 0;
+		gesturesContainer = negativeGestures.clone();
+
+		lastX = lastPathX = -1;
+		lastY = lastPathY = -1;
 
 		gesturePath = null;
-		onGestureEventListener.onPatternClear();
 		invalidate();
 	}
 
@@ -351,7 +439,8 @@ public class GestureLock extends RelativeLayout{
 	 *
 	 * @return
 	 */
-	private String patternToCode() {
+	@Deprecated
+	public String patternToCode() {
 		StringBuilder builder = new StringBuilder();
 		builder.append(DEPTH + "@");
 		int[] cells = gesturesContainer;
@@ -361,10 +450,14 @@ public class GestureLock extends RelativeLayout{
 				builder.append(String.format("%" + fixedWidth + "d", cells[i]));
 			}
 		}
-		Log.d(DEBUG_TAG, "patternToCode:" + builder.toString());
 		return builder.toString();
 	}
 
+	public String patternToSecureCode() {
+		return MD5.md5(patternToCode());
+	}
+
+	@Deprecated
 	public static int[] parseCode(String code) {
 		int flag;
 		if (TextUtils.isEmpty(code) || (flag = code.indexOf("@")) <= 0) {
@@ -382,14 +475,27 @@ public class GestureLock extends RelativeLayout{
 		String rawCode = code.substring(flag + 1, code.length());
 		int[] res = new int[rawCode.length() / fixedWidth];
 		for (int i = 0; i<res.length; i++) {
-			res[i] = Integer.parseInt(rawCode.substring(i*fixedWidth,(i+1) * fixedWidth));
+			res[i] = Integer.parseInt(rawCode.substring(i * fixedWidth, (i + 1) * fixedWidth));
 		}
 
 		return res;
 	}
 
+	@Deprecated
 	public void setCorrectGesture(int[] correctGestures){
 		defaultGestures = correctGestures;
+	}
+
+	public void setSecurePatternCode(String spc) {
+		this.securePatternCode = spc;
+	}
+
+	@Deprecated
+	public void setCorrectGestureCode(String code) {
+		if (code.indexOf("@") == -1) {
+			code = String.format("%d@%s", DEPTH, code);
+		}
+		setCorrectGesture(parseCode(code));
 	}
 	
 	public void setMode(int mode){

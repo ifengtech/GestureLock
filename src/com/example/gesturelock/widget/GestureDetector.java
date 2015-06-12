@@ -6,15 +6,14 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 
-import com.example.gesturelock.R;
+import cn.vpfinance.android.R;
 
 /**
  * Created by Wang Gensheng on 2015/5/10.
  */
-public class GestureDetector extends View implements GestureLock.OnGestureEventListener {
+public class GestureDetector extends View implements GestureLock.OnBlockSelectedListener, GestureLock.OnGestureCompleteListener {
 
     private static final String DEBUG_TAG = "GestureDetector";
 
@@ -99,7 +98,8 @@ public class GestureDetector extends View implements GestureLock.OnGestureEventL
 
     public void setGestureLock(GestureLock gestureLock) {
         this.gestureLock = gestureLock;
-        this.gestureLock.setOnGestureEventListener(this);
+        this.gestureLock.setOnBlockSelectedListener(this);
+        this.gestureLock.setOnGestureCompleteListener(this);
     }
 
     @Override
@@ -111,14 +111,7 @@ public class GestureDetector extends View implements GestureLock.OnGestureEventL
     }
 
     @Override
-    public void onGestureEvent(boolean matched) {
-
-    }
-
-    @Override
-    public void onPatternComplete(String patternCode) {
-        Log.d(DEBUG_TAG, "patternCode:" + patternCode);
-
+    public void onGestureComplete(String patternCode) {
         boolean[] dp = detectedPositions;
         for (int i = 0; i < dp.length; i++) {
             dp[i] = false;
@@ -131,16 +124,6 @@ public class GestureDetector extends View implements GestureLock.OnGestureEventL
             }
         }
         invalidate();
-    }
-
-    @Override
-    public void onPatternClear() {
-        clearDetection();
-    }
-
-    @Override
-    public void onUnmatchedExceedBoundary() {
-
     }
 
     private void clearDetection() {
