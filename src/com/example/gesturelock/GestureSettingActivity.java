@@ -122,15 +122,13 @@ public class GestureSettingActivity extends Activity {
     }
 
     private void forceRedirectLogin() {
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.putExtra(LoginActivity.KEY_SHOW_PRESS_BACK, false);
-        startActivity(intent);
-
-        Toast.makeText(getApplicationContext(), R.string.gesture_invalid, Toast.LENGTH_SHORT).show();
-        // Safety logout!!
-        Constants.user = null;
-        LoginAction.logout();
-        finish();
+        LoginAction.logout(new LoginAction.LogoutListener() {
+            @Override
+            public void onLogout() {
+                Toast.makeText(getApplicationContext(), R.string.gesture_invalid, Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        });
     }
 
     private void onStateReset() {

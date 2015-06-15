@@ -12,7 +12,7 @@ public class GestureLockHelper {
 
     public static final int ACCEPTED_ERROR_COUNT = 10;
 
-    public static final int LOCK_THRESHOLD = 5 * 60 * 1000;
+    public static final int LOCK_THRESHOLD = 1 * 30 * 1000;
 
     public static final int LOCK_OCCURS_ON_BOOT = 1;
 
@@ -96,4 +96,5 @@ public class GestureLockHelper {
     public int getOccurence() {
         return this.occursOn;
     }
+
 }
