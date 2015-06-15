@@ -3,15 +3,15 @@ package com.example.gesturelock.util;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-public class SharedPreferencesHelper {
+public class PrefHelper {
 
     private SharedPreferences sp;
 
     private SharedPreferences.Editor       editor;
 
-    private static final String PRES_NAME              = "ifinance";
+    private static final String PRES_NAME              = "gesture_lock";
 
-    private static SharedPreferencesHelper helper;
+    private static PrefHelper helper;
 
     public static final String KEY_FIRST_START = "first_start";
     public static final String KEY_GESTURE_PASSWD = "gesture_passwd";
@@ -20,14 +20,14 @@ public class SharedPreferencesHelper {
     public static final String KEY_SAVE_LOGIN = "user_login";
     public static final String KEY_SAVE_USER_NAME = "user_name";
 
-    private SharedPreferencesHelper(Context context){
+    private PrefHelper(Context context){
         sp = context.getSharedPreferences(PRES_NAME, Context.MODE_PRIVATE);
         editor = sp.edit();
     }
 
-    public static SharedPreferencesHelper getInstance(Context context){
+    public static PrefHelper getInstance(Context context){
         if(helper == null){
-            helper = new SharedPreferencesHelper(context.getApplicationContext());
+            helper = new PrefHelper(context.getApplicationContext());
         }
 
         return helper;

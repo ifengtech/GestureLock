@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none">
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@dimen/top_bar_height"
+            android:background="@drawable/bg_gesture_lock">
+
+            <LinearLayout
+                android:id="@+id/lyt_gesture_indi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="36dp"
+                android:visibility="gone">
+                <TextView
+                    android:id="@+id/tv_gesture_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="16dp"
+                    android:gravity="center_horizontal"
+                    android:text="@string/draw_new_gesture"
+                    android:textSize="@dimen/text_size_small"
+                    android:textColor="#83f6d9"/>
+
+                <com.example.gesturelock.widget.GestureDetector
+                    android:id="@+id/gesture_detector"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:layout_gravity="center_horizontal"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_input_origin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/input_origin_gesture"
+                android:textSize="@dimen/text_size_normal"
+                android:layout_centerHorizontal="true"
+                android:textColor="#83f6d9"
+                android:layout_marginTop="98dp"
+                android:visibility="gone"/>
+
+            <com.example.gesturelock.widget.GestureLock
+                android:id="@+id/gesture_lock"
+                android:layout_marginLeft="32dp"
+                android:layout_marginRight="32dp"
+                android:layout_marginTop="150dp"
+                android:layout_marginBottom="32dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"/>
+
+            <TextView
+                android:id="@+id/tv_action_login_passwd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/verify_login_passwd"
+                android:layout_below="@id/gesture_lock"
+                android:textSize="@dimen/text_size_normal"
+                android:layout_centerHorizontal="true"
+                android:textColor="#83f6d9"
+                android:visibility="gone"/>
+
+        </RelativeLayout>
+    </ScrollView>
+
+    <include layout="@layout/layout_actionbar"
+        android:id="@+id/lyt_actionbar"/>
+
+</FrameLayout>

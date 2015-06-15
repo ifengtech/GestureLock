@@ -15,6 +15,7 @@
  */
 package com.example.gesturelock.util;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Application;
 import android.os.Bundle;
@@ -57,6 +58,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *      Foreground.get(getApplication()).removeListener(listener);
  *   }
  */
+@TargetApi(14)
 public class Foreground implements Application.ActivityLifecycleCallbacks {
 
     public static final String TAG = Foreground.class.getName();

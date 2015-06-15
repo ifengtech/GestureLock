@@ -4,9 +4,6 @@ import android.content.Context;
 import android.os.SystemClock;
 import android.text.TextUtils;
 
-/**
- * Created by Wang Gensheng on 2015/5/19.
- */
 public class GestureLockHelper {
 
     private static GestureLockHelper helper;
@@ -27,10 +24,10 @@ public class GestureLockHelper {
 
     private long mTimeTrace;
 
-    private SharedPreferencesHelper sharedPreferencesHelper;
+    private PrefHelper prefHelper;
 
     private GestureLockHelper(Context context) {
-        sharedPreferencesHelper = SharedPreferencesHelper.getInstance(context);
+        prefHelper = PrefHelper.getInstance(context);
     }
 
     public static GestureLockHelper getInstance(Context context) {
@@ -50,7 +47,7 @@ public class GestureLockHelper {
     }
 
     public boolean isLocked() {
-        String passwd = sharedPreferencesHelper.getStringValue(SharedPreferencesHelper.KEY_GESTURE_PASSWD);
+        String passwd = prefHelper.getStringValue(PrefHelper.KEY_GESTURE_PASSWD);
 
         return IS_LOCK_MODE_ON && LoginAction.isUserLogin() && !TextUtils.isEmpty(passwd)
                 && SystemClock.elapsedRealtime() - mTimeTrace > LOCK_THRESHOLD;
@@ -65,31 +62,31 @@ public class GestureLockHelper {
      * @return 返回还可以再输入的次数
      */
     public int errorHappens() {
-        int errorCount = sharedPreferencesHelper.getIntValue(SharedPreferencesHelper.KEY_GESTURE_ERROR, 0);
+        int errorCount = prefHelper.getIntValue(PrefHelper.KEY_GESTURE_ERROR, 0);
         errorCount++;
-        sharedPreferencesHelper.putIntValue(SharedPreferencesHelper.KEY_GESTURE_ERROR, errorCount);
+        prefHelper.putIntValue(PrefHelper.KEY_GESTURE_ERROR, errorCount);
         return ACCEPTED_ERROR_COUNT - errorCount;
     }
 
     public String getGesturePasswd() {
-        return sharedPreferencesHelper.getStringValue(SharedPreferencesHelper.KEY_GESTURE_PASSWD);
+        return prefHelper.getStringValue(PrefHelper.KEY_GESTURE_PASSWD);
     }
 
     public void setGesturePasswd(String passwd) {
-        sharedPreferencesHelper.putStringValue(SharedPreferencesHelper.KEY_GESTURE_PASSWD, passwd);
+        prefHelper.putStringValue(PrefHelper.KEY_GESTURE_PASSWD, passwd);
     }
 
     public boolean isSet() {
-        return !TextUtils.isEmpty(sharedPreferencesHelper.getStringValue(SharedPreferencesHelper.KEY_GESTURE_PASSWD));
+        return !TextUtils.isEmpty(prefHelper.getStringValue(PrefHelper.KEY_GESTURE_PASSWD));
     }
 
     public void reset() {
-        sharedPreferencesHelper.putStringValue(SharedPreferencesHelper.KEY_GESTURE_PASSWD, "");
-        sharedPreferencesHelper.putIntValue(SharedPreferencesHelper.KEY_GESTURE_ERROR, 0);
+        prefHelper.putStringValue(PrefHelper.KEY_GESTURE_PASSWD, "");
+        prefHelper.putIntValue(PrefHelper.KEY_GESTURE_ERROR, 0);
     }
 
     public void errorReset() {
-        sharedPreferencesHelper.putIntValue(SharedPreferencesHelper.KEY_GESTURE_ERROR, 0);
+        prefHelper.putIntValue(PrefHelper.KEY_GESTURE_ERROR, 0);
     }
 
     public void errorOccursOn(int occurOn) {

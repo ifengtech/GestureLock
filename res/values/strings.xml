@@ -3,4 +3,21 @@
 
     <string name="app_name">gesturelock</string>
 
+    <string name="action_close">关闭</string>
+
+    <string name="setting_gesture_passwd">设置手势密码</string>
+    <string name="draw_old_gesture">输入旧手势</string>
+    <string name="draw_new_gesture">绘制解锁手势</string>
+    <string name="forget_gesture">忘记手势密码</string>
+    <string name="login_another_account">登录其他账号</string>
+    <string name="input_origin_gesture">输入原手势密码</string>
+    <string name="verify_login_passwd">验证登录密码</string>
+    <string name="verify_gesture_passwd">验证手势密码</string>
+    <string name="passwd_error_count">密码错误，还可以再输入%d次</string>
+    <string name="gesture_invalid">手势密码已失效，请重新登录钱包。</string>
+    <string name="setting_succeed">手势设置成功</string>
+
+    <string name="turn_on_gesture_lock">开启手势</string>
+    <string name="set_gesture_lock">设置手势密码</string>
+
 </resources>
