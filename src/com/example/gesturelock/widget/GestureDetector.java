@@ -8,11 +8,9 @@ import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
 
-import cn.vpfinance.android.R;
+import com.example.gesturelock.R;
 
-/**
- * Created by Wang Gensheng on 2015/5/10.
- */
+@SuppressWarnings("unused")
 public class GestureDetector extends View implements GestureLock.OnBlockSelectedListener, GestureLock.OnGestureCompleteListener {
 
     private static final String DEBUG_TAG = "GestureDetector";

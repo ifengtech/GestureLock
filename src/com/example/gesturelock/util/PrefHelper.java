@@ -3,6 +3,7 @@ package com.example.gesturelock.util;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+@SuppressWarnings("unused")
 public class PrefHelper {
 
     private SharedPreferences sp;
@@ -23,6 +24,7 @@ public class PrefHelper {
     private PrefHelper(Context context){
         sp = context.getSharedPreferences(PRES_NAME, Context.MODE_PRIVATE);
         editor = sp.edit();
+        editor.apply();
     }
 
     public static PrefHelper getInstance(Context context){
@@ -36,25 +38,25 @@ public class PrefHelper {
     public void putStringValue(String key, String value){
         editor = sp.edit();
         editor.putString(key, value);
-        editor.commit();
+        editor.apply();
     }
 
     public void putBooleanValue(String key, boolean value){
         editor = sp.edit();
         editor.putBoolean(key, value);
-        editor.commit();
+        editor.apply();
     }
 
     public void putIntValue(String key, int value){
         editor = sp.edit();
         editor.putInt(key, value);
-        editor.commit();
+        editor.apply();
     }
 
     public void putLongValue(String key, long value){
         editor = sp.edit();
         editor.putLong(key, value);
-        editor.commit();
+        editor.apply();
     }
 
     public boolean getBooleanValue(String key){
@@ -84,6 +86,6 @@ public class PrefHelper {
     public void clearPreference(){
         editor = sp.edit();
         editor.clear();
-        editor.commit();
+        editor.apply();
     }
 }

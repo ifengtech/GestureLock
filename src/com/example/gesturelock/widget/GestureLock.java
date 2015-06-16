@@ -12,7 +12,7 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import cn.vpfinance.android.util.MD5;
+import com.example.gesturelock.util.MD5Util;
 
 /**
  * 支付宝手势逻辑：
@@ -21,6 +21,7 @@ import cn.vpfinance.android.util.MD5;
  * <li>2分钟内不加锁（时间尚未确定）</li>
  * </ul>
  */
+@SuppressWarnings("unused")
 public class GestureLock extends RelativeLayout {
 
 	private static final String DEBUG_TAG = "GestureLock";
@@ -314,7 +315,7 @@ public class GestureLock extends RelativeLayout {
 						} else {
 							matched = false;
 						}*/
-						matched = MD5.compareMD5String(this.securePatternCode, patternToSecureCode());
+						matched = MD5Util.compareMD5String(this.securePatternCode, patternToSecureCode());
 
 						if (!matched && mode != MODE_EDIT) {
 							unmatchedCount++;
@@ -454,7 +455,7 @@ public class GestureLock extends RelativeLayout {
 	}
 
 	public String patternToSecureCode() {
-		return MD5.md5(patternToCode());
+		return MD5Util.md5(patternToCode());
 	}
 
 	@Deprecated

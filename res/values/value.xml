@@ -3,4 +3,6 @@
     <dimen name="text_size_very_small">10sp</dimen>
     <dimen name="text_size_small">12sp</dimen>
     <dimen name="text_size_normal">14sp</dimen>
+
+    <color name="item_sel">#cccccc</color>
 </resources>

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.SystemClock;
 import android.text.TextUtils;
 
+@SuppressWarnings("unused")
 public class GestureLockHelper {
 
     private static GestureLockHelper helper;
