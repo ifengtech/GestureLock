@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
@@ -40,7 +41,7 @@ public class MainActivity extends BaseActivity {
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 				Intent intent = new Intent(MainActivity.this, GestureSettingActivity.class);
-				if (isChecked) {
+				if (lockHelper.isSet()) {
 					intent.putExtra(GestureSettingActivity.KEY_ACTIVITY_STATE, GestureSettingActivity.ACTIVITY_STATE_VERIFY);
 				} else {
 					intent.putExtra(GestureSettingActivity.KEY_ACTIVITY_STATE, GestureSettingActivity.ACTIVITY_STATE_RESET);
@@ -56,6 +57,12 @@ public class MainActivity extends BaseActivity {
 				startActivity(intent);
 			}
 		});
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+
 		if (lockHelper.isSet()) {
 			mLockSwitch.setChecked(true, true);
 			mItemSetting.setVisibility(View.VISIBLE);
